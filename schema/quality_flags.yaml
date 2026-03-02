@@ -1,0 +1,8 @@
+# Bitmask definitions for row-level quality_flag in silver
+INTERPOLATED_FAST: 1
+FORWARD_FILLED_SLOW: 2
+GAP_INSERTED: 4
+SOFT_RANGE_BREACH: 8
+HARD_RANGE_BREACH: 16
+TIME_ANOMALY: 32
+FLATLINE: 64

@@ -1,0 +1,19 @@
+soc_pct:
+  soft: [0, 100]
+  hard: [-1, 101]
+
+stack_voltage_v:
+  soft: [100, 1000]
+  hard: [50, 1200]
+
+battery_current_a:
+  soft: [-2000, 2000]
+  hard: [-5000, 5000]
+
+output_power_kw:
+  soft: [-500, 500]
+  hard: [-1000, 1000]
+
+avg_battery_temp_c:
+  soft: [-10, 70]
+  hard: [-30, 90]

@@ -1,0 +1,8 @@
+# Resampling frequency for silver layer
+freq: "1s"
+
+# Max gap length to fill per signal class
+max_gap_s:
+  fast: 5
+  slow: 60
+  status: 600

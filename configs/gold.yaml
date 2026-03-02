@@ -1,0 +1,38 @@
+rolling_windows_s: [30, 60, 300, 600]
+rolling_aggs: ["mean", "std", "min", "max"]
+
+lag_seconds: [60, 300, 600]
+
+# Use your actual schema column names
+base_signals:
+  - soc_pct
+  - stack_voltage_v
+  - battery_current_a
+  - output_power_kw
+  - motor_speed_rpm
+  - dc_side_voltage_v
+  - avg_battery_temp_c
+  - max_battery_temp_c
+  - min_battery_temp_c
+  - avg_cell_voltage_v
+  - max_cell_voltage_v
+  - min_cell_voltage_v
+  - motor_temperature_c
+  - mcu_temperature_c
+  - radiator_temperature_c
+  - total_kwh_consumed
+  - last_trip_kwh
+
+target:
+  name: y_soc_t_plus_300s
+  horizon_s: 300
+  source_col: soc_pct
+
+quality_filter:
+  drop_mask: 48  # (16 | 32)
+
+daily:
+  min_rows: 60
+
+trip:
+  min_rows: 60

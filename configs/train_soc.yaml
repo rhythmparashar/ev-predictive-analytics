@@ -1,0 +1,30 @@
+# configs/train_soc.yaml
+
+data:
+  gold_dir: data/gold
+  target_col: y_soc_t_plus_300s
+  label_col: label_available
+  group_col: trip_id
+
+filtering:
+  # drop the first N seconds of each trip (reduces NaNs in rolling/lag features)
+  min_pos_in_trip: 600
+
+split:
+  test_frac: 0.2
+  seed: 42
+  split_strategy: shuffled_trips  # options: shuffled_trips | time_order_trips
+
+model:
+  name: lightgbm
+  params:
+    n_estimators: 800
+    learning_rate: 0.05
+    num_leaves: 63
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
+    n_jobs: -1
+
+outputs:
+  model_dir: models/soc_5min

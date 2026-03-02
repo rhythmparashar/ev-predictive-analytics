@@ -1,0 +1,58 @@
+required:
+  - timestamp
+  - vehicle_id
+  - soc_pct
+
+columns:
+  timestamp: datetime64[ns, UTC]
+  vehicle_id: string
+
+  # Numeric signals
+  soc_pct: float64
+  stack_voltage_v: float64
+  battery_current_a: float64
+  output_power_kw: float64
+  charger_current_demand_a: float64
+  charger_voltage_demand_v: float64
+
+  max_cell_voltage_v: float64
+  min_cell_voltage_v: float64
+  avg_cell_voltage_v: float64
+
+  max_battery_temp_c: float64
+  min_battery_temp_c: float64
+  avg_battery_temp_c: float64
+
+  motor_torque_limit_nm: float64
+  motor_torque_value_nm: float64
+  motor_speed_rpm: float64
+
+  motor_ac_current_a: float64
+  motor_ac_voltage_v: float64
+  dc_side_voltage_v: float64
+
+  motor_temperature_c: float64
+  mcu_temperature_c: float64
+  radiator_temperature_c: float64
+
+  dcdc_pri_a_mosfet_temp_c: float64
+  dcdc_sec_ls_mosfet_temp_c: float64
+  dcdc_sec_hs_mosfet_temp_c: float64
+  dcdc_pri_c_mosfet_temp_c: float64
+
+  dcdc_input_voltage_v: float64
+  dcdc_input_current_a: float64
+  dcdc_output_voltage_v: float64
+  dcdc_output_current_a: float64
+
+  dcdc_overcurrent_count: float64
+  total_running_hours_s: float64
+  last_trip_hours_s: float64
+  total_kwh_consumed: float64
+  last_trip_kwh: float64
+
+  # Categorical/status signals
+  battery_status: string
+  motor_rotation_direction: string
+  motor_operation_mode: string
+  mcu_enable_state: int64

@@ -1,0 +1,40 @@
+# Resampling behavior by signal class.
+# fast -> interpolate (limited), slow -> forward fill (limited), status -> ffill (no interpolation)
+fast:
+  - stack_voltage_v
+  - battery_current_a
+  - output_power_kw
+  - charger_current_demand_a
+  - charger_voltage_demand_v
+  - max_cell_voltage_v
+  - min_cell_voltage_v
+  - avg_cell_voltage_v
+  - motor_torque_limit_nm
+  - motor_torque_value_nm
+  - motor_speed_rpm
+  - motor_ac_current_a
+  - motor_ac_voltage_v
+  - dc_side_voltage_v
+  - dcdc_input_voltage_v
+  - dcdc_input_current_a
+  - dcdc_output_voltage_v
+  - dcdc_output_current_a
+
+slow:
+  - max_battery_temp_c
+  - min_battery_temp_c
+  - avg_battery_temp_c
+  - motor_temperature_c
+  - mcu_temperature_c
+  - radiator_temperature_c
+  - dcdc_pri_a_mosfet_temp_c
+  - dcdc_sec_ls_mosfet_temp_c
+  - dcdc_sec_hs_mosfet_temp_c
+  - dcdc_pri_c_mosfet_temp_c
+  - soc_pct
+
+status:
+  - battery_status
+  - motor_rotation_direction
+  - motor_operation_mode
+  - mcu_enable_state
