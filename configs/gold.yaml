@@ -1,3 +1,4 @@
+#configs/gold.yaml
 rolling_windows_s: [30, 60, 300, 600]
 rolling_aggs: ["mean", "std", "min", "max"]
 
@@ -27,6 +28,7 @@ target:
   name: y_soc_t_plus_300s
   horizon_s: 300
   source_col: soc_pct
+  max_abs_delta: 25
 
 quality_filter:
   drop_mask: 48  # (16 | 32)

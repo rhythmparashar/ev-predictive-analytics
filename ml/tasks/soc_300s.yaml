@@ -1,0 +1,38 @@
+# #ml/tasks/soc_300s.yaml
+# name: soc_300s
+# problem_type: regression
+# target: y_soc_t_plus_300s
+# label_col: label_available
+
+# feature_set: soc_plus_charge_v1
+
+# filters:
+#   drop_gap_inserted: true
+#   forbid_hard_or_time_anomaly: false
+
+# split:
+#   method: trip_chrono
+#   val_trips: 20
+
+# model:
+#   type: xgb_regressor
+#   params:
+#     n_estimators: 1200
+#     max_depth: 6
+#     learning_rate: 0.05
+#     subsample: 0.8
+#     colsample_bytree: 0.8
+#     min_child_weight: 10
+#     reg_alpha: 0.1
+#     reg_lambda: 1.0
+#     early_stopping_rounds: 50
+#     eval_metric: mae
+
+# baselines:
+#   - persistence_soc
+#   - roll_mean_60s
+
+# drift:
+#   psi_bins: 20
+#   top_k_features: 20
+#   reference_sample_rows: 50000

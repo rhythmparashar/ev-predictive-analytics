@@ -1,3 +1,6 @@
+# schema/ranges.yaml
+# Only key electrical and thermal signals are range validated.
+# These signals strongly influence SOC prediction and are prone to telemetry spikes.
 soc_pct:
   soft: [0, 100]
   hard: [-1, 101]

@@ -1,0 +1,62 @@
+# tasks/soc_forecast/config.yaml
+#
+# All runtime settings for the SOC 5-min forecast task.
+# A snapshot of this file is saved into every model run folder.
+# Edit here to change hyperparameters — never hardcode in train.py.
+
+task:   soc_forecast
+target: y_soc_t_plus_300s
+
+# ── Data ──────────────────────────────────────────────────────────────────────
+data:
+  # Dates used for training  (edit before each retrain)
+  train_dates:
+    - "2026-02-23"
+    - "2026-02-24"
+    - "2026-02-25"
+    - "2026-02-26"
+    - "2026-03-01"
+    - "2026-03-04"
+
+  # Dates used for validation
+  val_dates:
+    - "2026-03-08"
+
+  # Vehicle(s) to include  (list — supports multi-vehicle later)
+  vehicles:
+    - "EV01"
+
+  # Row-level filter applied after loading Gold
+  label_filter: "label_available == 1"
+
+  # quality_flag bits to drop  (16 = hard range breach, 32 = time anomaly, 4 = gap inserted)
+  drop_quality_mask: 52   # 4 | 16 | 32
+
+# ── Model ─────────────────────────────────────────────────────────────────────
+model:
+  type: xgboost_regressor
+  n_estimators: 800
+  max_depth: 6
+  learning_rate: 0.05
+  subsample: 0.8
+  colsample_bytree: 0.8
+  min_child_weight: 10
+  reg_alpha: 0.1
+  reg_lambda: 1.0
+  early_stopping_rounds: 30
+  eval_metric: mae
+  random_state: 42
+
+# ── Evaluation thresholds ─────────────────────────────────────────────────────
+thresholds:
+  mae_excellent:    0.5
+  mae_acceptable:   1.5
+  mae_investigate:  2.0
+  train_val_gap_ok: 0.5
+
+# ── Drift alert thresholds ────────────────────────────────────────────────────
+drift:
+  psi_monitor:  0.1
+  psi_alert:    0.2
+  ks_pvalue:    0.05
+  mean_shift_pct: 10.0

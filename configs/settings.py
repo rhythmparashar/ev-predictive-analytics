@@ -1,3 +1,4 @@
+#configs/settings.py
 """
 Global settings (paths + environment switches).
 All other modules import paths from here so you never hardcode folder paths.

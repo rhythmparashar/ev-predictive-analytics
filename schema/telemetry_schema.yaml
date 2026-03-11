@@ -1,3 +1,4 @@
+# schema/telemetry_schema.yaml
 required:
   - timestamp
   - vehicle_id

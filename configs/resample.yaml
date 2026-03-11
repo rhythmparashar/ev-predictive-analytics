@@ -1,3 +1,4 @@
+#configs/resample.yaml
 # Resampling frequency for silver layer
 freq: "1s"
 

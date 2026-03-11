@@ -1,3 +1,4 @@
+# schema/units.yaml
 timestamp: "datetime"
 soc_pct: "%"
 stack_voltage_v: "V"

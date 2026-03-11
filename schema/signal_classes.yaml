@@ -1,3 +1,4 @@
+# schema/signal_classes.yaml
 # Resampling behavior by signal class.
 # fast -> interpolate (limited), slow -> forward fill (limited), status -> ffill (no interpolation)
 fast:
@@ -38,3 +39,10 @@ status:
   - motor_rotation_direction
   - motor_operation_mode
   - mcu_enable_state
+
+counter:
+  - dcdc_overcurrent_count
+  - total_running_hours_s
+  - last_trip_hours_s
+  - total_kwh_consumed
+  - last_trip_kwh

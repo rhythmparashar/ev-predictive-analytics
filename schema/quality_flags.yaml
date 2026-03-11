@@ -1,8 +1,14 @@
-# Bitmask definitions for row-level quality_flag in silver
-INTERPOLATED_FAST: 1
-FORWARD_FILLED_SLOW: 2
-GAP_INSERTED: 4
-SOFT_RANGE_BREACH: 8
-HARD_RANGE_BREACH: 16
-TIME_ANOMALY: 32
-FLATLINE: 64
+# schema/quality_flags.yaml
+# Bitmask definitions for row-level data quality flags in the Silver dataset.
+# Each value must be a power of two so multiple flags can be combined.
+
+VERSION: 1
+
+INTERPOLATED_FAST: 1          # Fast signal filled by interpolation
+FORWARD_FILLED: 2             # Slow/status signal forward filled
+GAP_INSERTED: 4               # Row inserted due to missing telemetry timestamp
+SOFT_RANGE_BREACH: 8          # Value outside expected range but still plausible
+HARD_RANGE_BREACH: 16         # Value physically impossible or invalid
+TIME_ANOMALY: 32              # Duplicate or reversed timestamps
+FLATLINE: 64                  # Sensor stuck (constant value for long window)
+

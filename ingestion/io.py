@@ -47,12 +47,17 @@ def read_csv(path: Path) -> pd.DataFrame:
     We don't cast here (CSV types can be messy).
     Casting happens after standardization + schema validation.
     """
-    return pd.read_csv(path)
+    return pd.read_csv(path, low_memory=False)
 
 
 def parquet_path(base: Path, dt: str, vehicle_id: str) -> Path:
     """Build parquet output path: base/dt=.../vehicle_id=...parquet"""
     return dt_dir(base, dt) / f"vehicle_id={vehicle_id}.parquet"
+
+
+def fault_csv_path(raw_fault_dir: Path, dt: str, vehicle_id: str) -> Path:
+    """Build fault CSV input path."""
+    return dt_dir(raw_fault_dir, dt) / f"vehicle_id={vehicle_id}.csv"
 
 
 def write_parquet_atomic(df: pd.DataFrame, out_path: Path) -> None:
@@ -62,5 +67,7 @@ def write_parquet_atomic(df: pd.DataFrame, out_path: Path) -> None:
     """
     ensure_dir(out_path.parent)
     tmp = out_path.with_suffix(out_path.suffix + ".tmp")
+    if tmp.exists():
+        tmp.unlink()
     df.to_parquet(tmp, index=False)
     tmp.replace(out_path)

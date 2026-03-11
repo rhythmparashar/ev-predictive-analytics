@@ -13,20 +13,22 @@ It performs:
 2) Timestamp parsing
    - Converts to UTC datetime
    - Flags invalid timestamps
+   - Flags time reversal anomalies
+   - Drops rows with invalid timestamps after flagging/reporting
 
 3) Duplicate timestamp reporting
    - Expected for 2 Hz telemetry with second-level timestamps
    - NOT treated as anomaly
 
 4) Numeric conversion
-   - Converts signals to numeric safely
+   - Converts declared numeric signals safely using schema
 
 5) Placeholder value cleaning
    - Example: stack_voltage_v == 0 → treated as missing
 
 6) Range checks
    - Soft breaches → flagged but allowed
-   - Hard breaches → flagged for exclusion later
+   - Hard breaches → flagged and value nulled
 
 7) Null-rate reporting
 
@@ -48,222 +50,154 @@ import yaml
 import pandas as pd
 
 
-# -------------------------
-# Output container
-# -------------------------
-
 @dataclass
 class ValidationResult:
     df: pd.DataFrame
     report: dict
 
 
-# -------------------------
-# YAML Loader
-# -------------------------
-
 def load_yaml(path: Path) -> dict:
     with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        return yaml.safe_load(f) or {}
 
 
-# -------------------------
-# Validation Pipeline
-# -------------------------
+def _numeric_columns_from_schema(schema: dict) -> list[str]:
+    cols = schema.get("columns", {})
+    out: list[str] = []
+    for col, dtype in cols.items():
+        if dtype in {"float64", "int64", "Int64", "float32", "int32"}:
+            out.append(col)
+    return out
+
 
 def validate(
     df: pd.DataFrame,
     schema_path: Path,
     ranges_path: Path,
-    quality_flags_path: Path
+    quality_flags_path: Path,
 ) -> ValidationResult:
-
     schema = load_yaml(schema_path)
     ranges = load_yaml(ranges_path)
     qf = load_yaml(quality_flags_path)
 
-    # -------------------------------------------------
-    # 1) Required column validation
-    # -------------------------------------------------
+    df = df.copy()
 
     required = schema.get("required", [])
-
     missing = [c for c in required if c not in df.columns]
-
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-
-    # -------------------------------------------------
-    # 2) Ensure quality_flag column
-    # -------------------------------------------------
-
     if "quality_flag" not in df.columns:
         df["quality_flag"] = 0
-
     df["quality_flag"] = df["quality_flag"].fillna(0).astype("int64")
 
-
     # -------------------------------------------------
-    # 3) Timestamp parsing
+    # Timestamp parsing + anomaly detection
     # -------------------------------------------------
 
-    # Raw format example:
-    # 15/01/2026, 11:15:05
-
-    ts = pd.to_datetime(
+    raw_ts = pd.to_datetime(
         df["timestamp"],
         errors="coerce",
         dayfirst=True,
-        utc=True
+        utc=True,
     )
 
-    bad_ts = ts.isna()
+    bad_ts = raw_ts.isna()
+
+    # Detect timestamp reversal in original file order
+    ts_diff = raw_ts.diff()
+    reversed_ts = ts_diff.lt(pd.Timedelta(0)).fillna(False)
 
     if bad_ts.any():
         df.loc[bad_ts, "quality_flag"] |= int(qf["TIME_ANOMALY"])
 
-    df["timestamp"] = ts
+    if reversed_ts.any():
+        df.loc[reversed_ts, "quality_flag"] |= int(qf["TIME_ANOMALY"])
 
+    df["timestamp"] = raw_ts
 
-    # -------------------------------------------------
-    # 4) Duplicate timestamps (EXPECTED for 2Hz)
-    # -------------------------------------------------
+    # Duplicate timestamps are expected at 2 Hz with second precision
+    duplicate_count = int(df["timestamp"].duplicated(keep="first").sum())
 
-    # These occur because raw telemetry is 2Hz but
-    # timestamps only have second precision.
-
-    dup = df["timestamp"].duplicated(keep="first")
-
-    duplicate_count = int(dup.sum())
-
+    # Drop rows that cannot participate in a time-series pipeline
+    dropped_bad_timestamp_rows = int(bad_ts.sum())
+    if dropped_bad_timestamp_rows > 0:
+        df = df.loc[df["timestamp"].notna()].copy()
 
     # -------------------------------------------------
-    # 5) Convert numeric columns safely
+    # Numeric conversion from schema
     # -------------------------------------------------
 
-    for col in df.columns:
-
-        if col in ["timestamp", "vehicle_id", "battery_status",
-                   "motor_rotation_direction", "motor_operation_mode"]:
-            continue
-
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
+    numeric_cols = _numeric_columns_from_schema(schema)
+    for col in numeric_cols:
+        if col in df.columns and col not in {"quality_flag"}:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # -------------------------------------------------
-    # 6) Replace known placeholder values with NaN
+    # Placeholder values -> NaN
+    # Optional future move: schema/placeholders.yaml
     # -------------------------------------------------
 
-    # Many EV telemetry systems output 0 when sensor
-    # is unavailable. These must be treated as missing.
+    zero_as_missing = ["stack_voltage_v"]
 
-    ZERO_AS_MISSING = [
-        "stack_voltage_v"
-    ]
-
-    for col in ZERO_AS_MISSING:
-
+    for col in zero_as_missing:
         if col in df.columns:
-
             s = pd.to_numeric(df[col], errors="coerce")
-
-            df[col] = s.mask(s == 0, other=pd.NA)
-
+            df[col] = s.mask(s == 0)
 
     # -------------------------------------------------
-    # 7) Range checks
+    # Range checks
+    # Soft -> flag only
+    # Hard -> flag + null that signal value
     # -------------------------------------------------
 
     hard_breaches = 0
     soft_breaches = 0
 
-    soft_by_col = {}
-    hard_by_col = {}
+    soft_by_col: dict[str, int] = {}
+    hard_by_col: dict[str, int] = {}
 
     for col, lim in ranges.items():
-
         if col not in df.columns:
             continue
 
-        s = df[col]
+        s = pd.to_numeric(df[col], errors="coerce")
 
         soft_lo, soft_hi = lim.get("soft", [None, None])
         hard_lo, hard_hi = lim.get("hard", [None, None])
 
-
-        # Soft breaches
-
         if soft_lo is not None and soft_hi is not None:
-
-            soft_mask = (s < soft_lo) | (s > soft_hi)
-
+            soft_mask = s.notna() & ((s < soft_lo) | (s > soft_hi))
             cnt = int(soft_mask.sum())
-
             soft_breaches += cnt
-
             soft_by_col[col] = cnt
-
-            df.loc[soft_mask, "quality_flag"] |= int(qf["SOFT_RANGE_BREACH"])
-
-
-        # Hard breaches
+            if cnt:
+                df.loc[soft_mask, "quality_flag"] |= int(qf["SOFT_RANGE_BREACH"])
 
         if hard_lo is not None and hard_hi is not None:
-
-            hard_mask = (s < hard_lo) | (s > hard_hi)
-
+            hard_mask = s.notna() & ((s < hard_lo) | (s > hard_hi))
             cnt = int(hard_mask.sum())
-
             hard_breaches += cnt
-
             hard_by_col[col] = cnt
-
-            df.loc[hard_mask, "quality_flag"] |= int(qf["HARD_RANGE_BREACH"])
-
-
-    # -------------------------------------------------
-    # 8) Validation report
-    # -------------------------------------------------
+            if cnt:
+                df.loc[hard_mask, "quality_flag"] |= int(qf["HARD_RANGE_BREACH"])
+                df.loc[hard_mask, col] = pd.NA
 
     report = {
-
-        "row_count": int(len(df)),
-
+        "row_count_after_validation": int(len(df)),
         "missing_required_columns": missing,
-
-        # Informational only (expected for 2Hz)
-        "duplicate_timestamps": duplicate_count,
-
-        "bad_timestamps": int(bad_ts.sum()),
-
+        "duplicate_timestamps": duplicate_count,  # informational
+        "bad_timestamps": dropped_bad_timestamp_rows,
+        "time_reversal_rows": int(reversed_ts.sum()),
         "soft_range_breaches": soft_breaches,
-
         "hard_range_breaches": hard_breaches,
-
-        "soft_breaches_by_col":
-            dict(sorted(
-                soft_by_col.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )[:10]),
-
-        "hard_breaches_by_col":
-            dict(sorted(
-                hard_by_col.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )[:10]),
-
-        "null_rates": {
-            c: float(df[c].isna().mean())
-            for c in df.columns
-        }
-
+        "soft_breaches_by_col": dict(
+            sorted(soft_by_col.items(), key=lambda x: x[1], reverse=True)[:10]
+        ),
+        "hard_breaches_by_col": dict(
+            sorted(hard_by_col.items(), key=lambda x: x[1], reverse=True)[:10]
+        ),
+        "null_rates": {c: float(df[c].isna().mean()) for c in df.columns},
     }
 
-
-    return ValidationResult(
-        df=df,
-        report=report
-    )
+    return ValidationResult(df=df, report=report)

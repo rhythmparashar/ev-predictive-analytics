@@ -1,3 +1,4 @@
+#configs/trip.yaml
 # Driving trip segmentation config
 
 debounce_s: 5
@@ -12,3 +13,5 @@ power_stop_kw: 0.5
 
 # If GAP_INSERTED continues this long, hard-break trips
 gap_break_s: 300
+
+# change this

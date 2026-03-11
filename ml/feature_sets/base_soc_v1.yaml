@@ -1,0 +1,81 @@
+# #ml/feature_sets/base_soc_v1.yaml
+# name: base_soc_v1
+# features:
+#   # SOC
+#   - soc_pct
+#   - soc_pct_lag_60s
+#   - soc_pct_lag_300s
+#   - soc_pct_lag_600s
+#   - soc_pct_roll_mean_60s
+#   - soc_pct_roll_mean_300s
+#   - soc_pct_roll_std_60s
+#   - soc_pct_roll_std_300s
+
+#   # Current
+#   - battery_current_a
+#   - battery_current_a_lag_60s
+#   - battery_current_a_lag_300s
+#   - battery_current_a_roll_mean_30s
+#   - battery_current_a_roll_mean_300s
+#   - battery_current_a_roll_std_60s
+#   - battery_current_a_roll_max_60s
+#   - battery_current_a_roll_min_60s
+
+#   # Voltage
+#   - stack_voltage_v
+#   - stack_voltage_v_lag_60s
+#   - stack_voltage_v_lag_300s
+#   - stack_voltage_v_roll_mean_60s
+#   - stack_voltage_v_roll_mean_300s
+#   - stack_voltage_v_roll_std_60s
+
+#   # Cell
+#   - max_cell_voltage_v
+#   - min_cell_voltage_v
+#   - cell_voltage_delta_v
+#   - cell_voltage_delta_norm
+#   - max_cell_voltage_v_roll_mean_60s
+#   - min_cell_voltage_v_roll_mean_60s
+
+#   # Power
+#   - output_power_kw
+#   - output_power_kw_lag_60s
+#   - output_power_kw_lag_300s
+#   - output_power_kw_roll_mean_60s
+#   - output_power_kw_roll_mean_300s
+#   - output_power_kw_roll_std_60s
+#   - output_power_kw_roll_max_60s
+#   - elec_power_kw_proxy
+
+#   # Motor speed
+#   - motor_speed_rpm
+#   - motor_speed_rpm_lag_60s
+#   - motor_speed_rpm_roll_mean_60s
+#   - motor_speed_rpm_roll_mean_300s
+#   - motor_speed_rpm_roll_std_60s
+#   - motor_speed_rpm_roll_max_60s
+
+#   # Battery temp
+#   - avg_battery_temp_c
+#   - avg_battery_temp_c_lag_60s
+#   - avg_battery_temp_c_lag_300s
+#   - avg_battery_temp_c_roll_mean_300s
+#   - avg_battery_temp_c_roll_std_300s
+#   - battery_temp_delta_c
+#   - battery_temp_delta_norm
+
+#   # Motor temp
+#   - motor_temperature_c
+#   - motor_temperature_c_lag_300s
+#   - motor_temperature_c_roll_mean_300s
+#   - motor_temperature_c_roll_std_60s
+
+#   # Energy
+#   - total_kwh_consumed
+#   - total_kwh_consumed_lag_60s
+#   - total_kwh_consumed_lag_300s
+
+#   # Fault/power proxy
+#   - fault_any
+#   - power_proxy_error_kw
+#   - power_proxy_ratio
