@@ -4,23 +4,69 @@
 # A snapshot of this file is saved into every model run folder.
 # Edit here to change hyperparameters — never hardcode in train.py.
 
-task:   soc_forecast
-target: y_soc_t_plus_300s
+task:         soc_forecast
+target:       y_soc_t_plus_300s
+vehicle_id:   EV01
+machine_type: Loader
 
 # ── Data ──────────────────────────────────────────────────────────────────────
 data:
-  # Dates used for training  (edit before each retrain)
+  # Dates used for training  (updated with full history + good March days)
   train_dates:
+    - "2026-01-15"
+    - "2026-01-16"
+    - "2026-01-17"
+    - "2026-01-18"
+    - "2026-01-19"
+    - "2026-01-20"
+    - "2026-01-21"
+    - "2026-01-22"
+    - "2026-01-23"
+    - "2026-01-24"
+    - "2026-01-25"
+    - "2026-01-26"
+    - "2026-01-27"
+    - "2026-01-28"
+    - "2026-01-29"
+    - "2026-01-30"
+    - "2026-01-31"
+    - "2026-02-01"
+    - "2026-02-02"
+    - "2026-02-03"
+    - "2026-02-04"
+    - "2026-02-05"
+    - "2026-02-06"
+    - "2026-02-07"
+    - "2026-02-08"
+    - "2026-02-09"
+    - "2026-02-10"
+    - "2026-02-11"
+    - "2026-02-12"
+    - "2026-02-13"
+    - "2026-02-14"
+    - "2026-02-15"
+    - "2026-02-16"
+    - "2026-02-17"
+    - "2026-02-18"
+    - "2026-02-19"
+    - "2026-02-20"
+    - "2026-02-21"
+    - "2026-02-22"
     - "2026-02-23"
     - "2026-02-24"
     - "2026-02-25"
     - "2026-02-26"
     - "2026-03-01"
-    - "2026-03-04"
-
-  # Dates used for validation
-  val_dates:
     - "2026-03-08"
+    - "2026-03-10"
+    - "2026-03-11"
+    - "2026-03-12"
+    - "2026-03-13"
+
+  # Dates used for validation (unseen future data)
+  val_dates:
+    - "2026-03-14"
+    - "2026-03-15"
 
   # Vehicle(s) to include  (list — supports multi-vehicle later)
   vehicles:

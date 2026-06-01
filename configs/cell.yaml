@@ -1,0 +1,75 @@
+# configs/cell.yaml
+# All runtime thresholds for cell health pipeline.
+# Calibrated from data analysis across 2026-02-24 to 2026-03-08.
+# cell_validators.py, cell_health.py, cell_agg.py, and cell_health_report.py
+# import from here. Nothing is hardcoded in those files.
+
+# -------------------------------------------------
+# Null handling
+# Derived from data analysis: 518,494 rows across dt=2026-02-23
+# -------------------------------------------------
+null_handling:
+  cell_group_dropout_max: 8     # <= 8 nulls → CELL_FFILLED, forward fill
+  module_gap_min: 9
+  pack_gap_threshold: 170       # >= 170 nulls → PACK_GAP, no fill
+                                # 9-169 nulls → MODULE_GAP, fill where possible
+
+# -------------------------------------------------
+# Cell voltage thresholds
+# Basis: module_voltage_range_v distribution across all dates
+# p50=60mV  p90=90mV  p95=98mV  p99=129mV  max=670mV
+# -------------------------------------------------
+voltage:
+  nominal_v: 3.2
+  imbalance_warn_mv: 90         # above p90 of normal operation → Monitor
+  imbalance_alert_mv: 130       # above p99 of normal operation → Imbalance Rising
+  outlier_zscore: 2.5           # cell z-score within module > 2.5 → CELL_OUTLIER
+  flatline_window_s: 1800       # 30 min — raised from 300s
+                                # stable batteries hold constant voltage for long
+                                # periods — 300s flagged 93% of rows as flatline
+
+# -------------------------------------------------
+# Cell temperature thresholds
+# Basis: module_temp_range_c and module_temp_mean_c distributions
+# temp_range: p50=8C  p90=14C  p95=15C  max=53C
+# temp_mean:  p50=34C  p95=39C  max=41C
+# -------------------------------------------------
+temperature:
+  hotspot_delta_c: 15           # above p95 of normal temp range → hotspot
+                                # was 5C — flagged normal operation constantly
+  warn_c: 45                    # machine max observed mean is 41C
+                                # warn only fires if genuinely overheating
+  alert_c: 55                   # well above any observed value — safety catch
+  flatline_window_s: 1800       # same reasoning as voltage flatline
+
+# -------------------------------------------------
+# Health report
+# -------------------------------------------------
+health_report:
+  min_rows_for_report: 60
+  trend_window_days: 7
+  pct_time_imbalanced_warn: 0.20  # >20% of day above warn threshold → Monitor
+  pct_time_imbalanced_alert: 0.50 # >50% of day above alert threshold → Imbalance Rising
+
+# -------------------------------------------------
+# Module status thresholds (drives dashboard label)
+# -------------------------------------------------
+status:
+  critical:
+    min_signals_degraded: 3     # 3+ signals flagged → Critical
+
+  degraded_cell:
+    persistent_low_days: 3      # cell below module mean for 3+ consecutive days
+
+  imbalance_rising:
+    trend_window_days: 7
+    min_std_increase_pct: 20    # voltage_std increased >20% over trend window
+
+  thermal_hotspot:
+    hotspot_delta_c: 15         # matches temperature.hotspot_delta_c above
+
+  monitor:
+    any_flag: true              # any signal outside soft threshold → Monitor
+
+  healthy:
+    default: true               # no flags → Healthy

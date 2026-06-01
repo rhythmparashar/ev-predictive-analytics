@@ -60,6 +60,7 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
         "Stack Voltage (V)": "stack_voltage_v",
         "Battery Current (A)": "battery_current_a",
         "Output Power (kW)": "output_power_kw",
+        "Battery Power (kW)": "output_power_kw",
         "Charger Current Demand (A)": "charger_current_demand_a",
         "Charger Voltage Demand (V)": "charger_voltage_demand_v",
         "Max Cell Voltage (V)": "max_cell_voltage_v",
@@ -140,10 +141,13 @@ def run_ingest_for_day(
     resample_cfg_path: Path,
     trip_cfg_path: Path,
     state_path: Path,
+    vehicle_id_filter: str | None = None,
 ) -> dict:
     csvs = list_raw_csvs(raw_dir, dt)
+    if vehicle_id_filter:
+        csvs = [c for c in csvs if vehicle_id_from_filename(c) == vehicle_id_filter]
     if not csvs:
-        raise FileNotFoundError(f"No raw CSVs found under {raw_dir}/dt={dt}/")
+        raise FileNotFoundError(f"No raw CSVs found under {raw_dir}/dt={dt}/ (vehicle_id_filter={vehicle_id_filter})")
 
     manifest = {
         "dt": dt,

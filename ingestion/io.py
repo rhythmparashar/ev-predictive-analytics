@@ -8,6 +8,8 @@ IO utilities:
 
 from __future__ import annotations
 
+import csv
+import io as _io
 import re
 from pathlib import Path
 import pandas as pd
@@ -43,11 +45,33 @@ def vehicle_id_from_filename(path: Path) -> str:
 
 def read_csv(path: Path) -> pd.DataFrame:
     """
-    Read CSV.
-    We don't cast here (CSV types can be messy).
-    Casting happens after standardization + schema validation.
+    Read CSV with tolerance for rows that have more fields than the header.
+
+    Extra fields in a row are silently truncated to match the column count.
+    This handles files where a split script appended rows with additional
+    columns (e.g. dt, vehicle_id) onto an existing file — those extra columns
+    are dropped, keeping the row's valid data intact.
+
+    Uses Python's csv.reader so quoted fields containing commas (e.g. a
+    timestamp like "09/03/2026, 09:57:57") are handled correctly.
     """
-    return pd.read_csv(path, low_memory=False)
+    rows: list[list[str]] = []
+    with open(path, newline="", encoding="utf-8", errors="replace") as fh:
+        reader = csv.reader(fh)
+        try:
+            header = next(reader)
+        except StopIteration:
+            return pd.DataFrame()
+        ncols = len(header)
+        rows.append(header)
+        for row in reader:
+            rows.append(row[:ncols])
+
+    buf = _io.StringIO()
+    writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
+    writer.writerows(rows)
+    buf.seek(0)
+    return pd.read_csv(buf, low_memory=False)
 
 
 def parquet_path(base: Path, dt: str, vehicle_id: str) -> Path:

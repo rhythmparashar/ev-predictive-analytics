@@ -45,7 +45,11 @@ def load_fault_csv(path: Path) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame(columns=["activated_at", "fixed_at", "code"])
 
-    faults = pd.read_csv(path)
+    faults = pd.read_csv(
+        path,
+        engine="python",
+        on_bad_lines="skip",
+    )
 
     faults = faults.rename(
         columns={
@@ -54,6 +58,8 @@ def load_fault_csv(path: Path) -> pd.DataFrame:
             "Code": "code",
         }
     )
+
+    faults.columns = [str(c).strip() for c in faults.columns]
 
     for col in ["activated_at", "fixed_at", "code"]:
         if col not in faults.columns:
@@ -75,7 +81,13 @@ def load_fault_csv(path: Path) -> pd.DataFrame:
 
     faults["code"] = faults["code"].map(_sanitize_fault_code)
 
-    faults = faults.dropna(subset=["activated_at", "code"]).sort_values("activated_at").reset_index(drop=True)
+    faults = (
+        faults
+        .dropna(subset=["activated_at", "code"])
+        .sort_values("activated_at")
+        .reset_index(drop=True)
+    )
+
     return faults
 
 

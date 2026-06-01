@@ -1,0 +1,23 @@
+# schema/cell_temp_schema.yaml
+# 5 modules x 18 sensors = 90 cell temperature columns.
+# One sensor per two cells per module.
+# All float64. All optional — nulls handled by cell_validators.py null rules.
+
+timestamp_col: Timestamp
+
+modules: [1, 2, 3, 4, 5]
+sensors_per_module: 18
+
+# Column naming pattern: M{module}_T{sensor}
+# e.g. M1_T1, M1_T2, ... M5_T18
+column_pattern: "M{m}_T{s}"
+
+dtype: float64
+
+# Soft and hard temperature bounds (degrees C)
+ranges:
+  soft: [0, 50]
+  hard: [-10, 65]
+
+# Flatline detection
+flatline_window_s: 300

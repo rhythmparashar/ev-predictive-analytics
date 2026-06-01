@@ -1,0 +1,17 @@
+# schema/cell_quality_flags.yaml
+# Bitmask definitions for row-level quality flags in silver_cells.
+# Each value must be a power of two so multiple flags can be combined.
+
+VERSION: 1
+
+CELL_FFILLED: 1       # 1-8 nulls per row — single cell group dropout, forward filled
+MODULE_GAP: 2         # 9-169 nulls per row — partial module dropout, filled where possible
+PACK_GAP: 4           # 170-180 nulls per row — complete pack reporting gap, no fill
+CELL_SOFT_BREACH: 8   # cell voltage or temp outside soft range but plausible
+CELL_HARD_BREACH: 16  # cell voltage or temp physically impossible
+CELL_FLATLINE: 32     # cell stuck at constant value across flatline window
+CELL_OUTLIER: 64      # cell is statistical outlier from module peers at this timestamp
+
+# Filter for clean rows when building gold_cells features
+# Excludes hard breaches and pack gaps — same principle as VCU MODEL_SAFE_MASK
+GOLD_SAFE_MASK: 20    # CELL_HARD_BREACH (16) + PACK_GAP (4) (this is for row exclusion, not a flag itself)

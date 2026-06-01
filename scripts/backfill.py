@@ -21,17 +21,26 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--start", required=True, help="YYYY-MM-DD")
     p.add_argument("--end", required=True, help="YYYY-MM-DD")
+    p.add_argument("--vehicle-id", default=None, help="Only process this vehicle (e.g. EV02)")
     args = p.parse_args()
 
     s = date.fromisoformat(args.start)
     e = date.fromisoformat(args.end)
 
+    skipped = []
     for d in daterange(s, e):
-        # This simplistic approach relies on run_day.py args parsing;
-        # you can refactor later into a shared function.
         import sys
-        sys.argv = ["run_day.py", "--dt", d.isoformat()]
-        run_day_main()
+        cmd = ["run_day.py", "--dt", d.isoformat()]
+        if args.vehicle_id:
+            cmd += ["--vehicle-id", args.vehicle_id]
+        sys.argv = cmd
+        try:
+            run_day_main()
+        except FileNotFoundError:
+            skipped.append(d.isoformat())
+
+    if skipped:
+        print(f"[SKIP] No raw data for {len(skipped)} dates: {', '.join(skipped)}")
 
 
 if __name__ == "__main__":

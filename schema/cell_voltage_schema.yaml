@@ -1,0 +1,22 @@
+# schema/cell_voltage_schema.yaml
+# 5 modules x 36 cells = 180 cell voltage columns.
+# All float64. All optional — nulls handled by cell_validators.py null rules.
+
+timestamp_col: Timestamp
+
+modules: [1, 2, 3, 4, 5]
+cells_per_module: 36
+
+# Column naming pattern: M{module}_C{cell}
+# e.g. M1_C1, M1_C2, ... M5_C36
+column_pattern: "M{m}_C{c}"
+
+dtype: float64
+
+# Soft and hard voltage bounds (LFP chemistry)
+ranges:
+  soft: [2.8, 3.65]
+  hard: [2.5, 4.0]
+
+# Flatline detection — cell stuck for this many seconds is flagged
+flatline_window_s: 300

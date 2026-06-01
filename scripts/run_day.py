@@ -53,10 +53,16 @@ def main():
         required=True,
         help="Date partition folder name (example: 2026-02-24)",
     )
+    parser.add_argument(
+        "--vehicle-id",
+        default=None,
+        help="Only ingest this vehicle (e.g. EV02). If omitted, all vehicles for the date are processed.",
+    )
 
     args = parser.parse_args()
 
     dt = args.dt
+    vehicle_id_filter = args.vehicle_id
 
     t0 = time.time()
 
@@ -65,6 +71,8 @@ def main():
     manifest = run_ingest_for_day(
 
         dt=dt,
+
+        vehicle_id_filter=vehicle_id_filter,
 
         raw_dir=RAW_DIR,
 

@@ -97,8 +97,8 @@ def validate(
 
     raw_ts = pd.to_datetime(
         df["timestamp"],
+        format="%Y-%m-%d %H:%M:%S",
         errors="coerce",
-        dayfirst=True,
         utc=True,
     )
 

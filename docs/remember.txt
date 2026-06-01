@@ -1,0 +1,179 @@
+Here is a **clean summary you can keep in a README or notes file** so you always know what data exists where.
+
+---
+
+# EV Telemetry Dataset Coverage Summary
+
+## VCU Telemetry
+
+### Raw / Silver VCU Data
+
+Available for:
+
+```
+2026-01-15 → 2026-02-26
+2026-03-01
+2026-03-04
+2026-03-08
+2026-03-10
+```
+
+Location:
+
+```
+data/raw/
+data/raw_parquet/
+data/silver/
+```
+
+Pipeline:
+
+```
+raw CSV → validation → raw_parquet → resample → trip segmentation → silver
+```
+
+---
+
+### VCU Gold Features
+
+Currently available for:
+
+```
+2026-02-23 → 2026-02-26
+2026-03-01
+2026-03-04
+2026-03-08
+2026-03-10
+```
+
+Location:
+
+```
+data/gold/window_features
+data/gold/trip_features
+data/gold/daily_stats
+```
+
+VCU Gold still missing for:
+
+```
+2026-01-22 → 2026-02-22
+```
+
+---
+
+# Cell Telemetry
+
+### Cell Silver Data
+
+Available for:
+
+```
+2026-01-22 → 2026-02-26
+2026-03-01
+2026-03-04
+2026-03-08
+```
+
+Location:
+
+```
+data/silver_cells
+```
+
+---
+
+### Cell Gold Features
+
+Available for the **same dates as cell silver**:
+
+```
+2026-01-22 → 2026-02-26
+2026-03-01
+2026-03-04
+2026-03-08
+```
+
+Location:
+
+```
+data/gold_cells/cell_features
+data/gold_cells/module_features
+data/gold_cells/pack_features
+```
+
+---
+
+# Fault Data
+
+Fault CSV ingestion exists for **all VCU dates where raw telemetry exists**.
+
+Fault time windows are applied during ingestion to create:
+
+```
+fault_<code>
+fault_any
+```
+
+Location:
+
+```
+data/raw_faults/
+```
+
+These are integrated into:
+
+```
+VCU silver dataset
+```
+
+---
+
+# Overlap Between VCU and Cell Data (Important)
+
+Dates where **both VCU and cell telemetry exist**:
+
+```
+2026-01-22 → 2026-02-26
+2026-03-01
+2026-03-04
+2026-03-08
+```
+
+These dates are the **valid range for combined analysis**.
+
+---
+
+# Extra VCU-only Days
+
+These days have VCU data but **no cell telemetry**:
+
+```
+2026-01-15 → 2026-01-21
+2026-03-10
+```
+
+These can still be used for:
+
+* VCU-only analysis
+* SOC modeling
+* drivetrain diagnostics
+
+But **not for cell analysis**.
+
+---
+
+# Recommended Analysis Window
+
+Use this range for **full battery + vehicle analysis**:
+
+```
+2026-01-22 → 2026-02-26
+2026-03-01
+2026-03-04
+2026-03-08
+```
+
+---
+
+If you want, I can also give you a **very clean architecture diagram of your whole pipeline (Raw → Silver → Gold → Reports → ML)** so you can document the project properly.
