@@ -42,7 +42,45 @@ PROCESSED_DIR = INCOMING_DIR / "processed"
 
 FILE_TYPES = ("TELEMETRY", "CELL_VOLTAGE", "CELL_TEMP")
 
-# Required columns for telemetry files
+# Maps raw Excel/CSV column names → internal snake_case names
+TELEMETRY_COL_MAP = {
+    "Timestamp":                    "timestamp",
+    "SOC (%)":                      "soc_pct",
+    "Battery Status":               "battery_status",
+    "Stack Voltage (V)":            "stack_voltage_v",
+    "Battery Current (A)":          "battery_current_a",
+    "Battery Power (kW)":           "output_power_kw",
+    "Charger Current Demand (A)":   "charger_current_demand_a",
+    "Charger Voltage Demand (V)":   "charger_voltage_demand_v",
+    "Max Cell Voltage (V)":         "max_cell_voltage_v",
+    "Min Cell Voltage (V)":         "min_cell_voltage_v",
+    "Avg Cell Voltage (V)":         "avg_cell_voltage_v",
+    "Max Battery Temp (°C)":   "max_battery_temp_c",
+    "Min Battery Temp (°C)":   "min_battery_temp_c",
+    "Avg Battery Temp (°C)":   "avg_battery_temp_c",
+    "Motor Torque Limit (Nm)":      "motor_torque_limit_nm",
+    "Motor Torque Value (Nm)":      "motor_torque_value_nm",
+    "Motor Speed (RPM)":            "motor_speed_rpm",
+    "Motor Rotation Direction":     "motor_rotation_direction",
+    "Motor Operation Mode":         "motor_operation_mode",
+    "MCU Enable State":             "mcu_enable_state",
+    "Motor AC Current (A)":         "motor_ac_current_a",
+    "Motor AC Voltage (V)":         "motor_ac_voltage_v",
+    "DC Side Voltage (V)":          "dc_side_voltage_v",
+    "Motor Temperature (°C)":  "motor_temperature_c",
+    "MCU Temperature (°C)":    "mcu_temperature_c",
+    "Radiator Temperature (°C)": "radiator_temperature_c",
+    "DCDC Input Voltage (V)":       "dcdc_input_voltage_v",
+    "DCDC Input Current (A)":       "dcdc_input_current_a",
+    "DCDC Output Voltage (V)":      "dcdc_output_voltage_v",
+    "DCDC Output Current (A)":      "dcdc_output_current_a",
+    "Total kWh Consumed":           "total_kwh_consumed",
+    "Last Trip kWh":                "last_trip_kwh",
+    "Total Running Hours":          "total_running_hours_s",
+    "Last Trip Hours":              "last_trip_hours_s",
+}
+
+# Required columns for telemetry files (after renaming)
 REQUIRED_TELEMETRY_COLS = {
     "timestamp", "soc_pct", "stack_voltage_v", "battery_current_a",
     "output_power_kw", "avg_battery_temp_c", "motor_temperature_c",
@@ -112,24 +150,52 @@ def find_new_files() -> list[Path]:
     return sorted(files)
 
 
+def hms_to_seconds(val) -> float | None:
+    """Convert 'HH:MM:SS' or '746:32:02' string to total seconds."""
+    try:
+        parts = str(val).strip().split(":")
+        if len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+    except Exception:
+        pass
+    return None
+
+
 def ingest_telemetry(df: pd.DataFrame, vehicle_id: str, dt: str) -> tuple[bool, str]:
     """Validate and write telemetry data to raw_parquet."""
+    df = df.copy()
+
+    # Rename human-readable columns to snake_case
+    df = df.rename(columns=TELEMETRY_COL_MAP)
+
     missing = REQUIRED_TELEMETRY_COLS - set(df.columns)
     if missing:
         return False, f"missing columns: {sorted(missing)}"
 
-    df = df.copy()
     df["vehicle_id"] = vehicle_id
     df["dt"]         = dt
+
+    # Convert running hours columns from HH:MM:SS to seconds
+    for col in ("total_running_hours_s", "last_trip_hours_s"):
+        if col in df.columns:
+            df[col] = df[col].apply(hms_to_seconds)
+
+    # Fix timestamp: strip leading whitespace/tabs, parse DD-MM-YYYY format
+    df["timestamp"] = (
+        df["timestamp"]
+        .astype(str)
+        .str.strip()
+    )
+    df["timestamp"] = pd.to_datetime(
+        df["timestamp"], dayfirst=True, utc=True, errors="coerce"
+    )
+    null_ts = df["timestamp"].isna().sum()
+    if null_ts > len(df) * 0.5:
+        return False, f"timestamp parse failed on {null_ts}/{len(df)} rows"
 
     for col in EXPECTED_TELEMETRY_COLS:
         if col not in df.columns:
             df[col] = None
-
-    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
-    null_ts = df["timestamp"].isna().sum()
-    if null_ts > len(df) * 0.5:
-        return False, f"timestamp parse failed on {null_ts}/{len(df)} rows"
 
     df = df[df["timestamp"].dt.date.astype(str) == dt]
     if df.empty:
