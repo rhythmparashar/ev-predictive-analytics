@@ -34,7 +34,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from configs.settings import (
-    RAW_PARQUET_DIR, RAW_CELL_VOLTAGE_DIR, RAW_CELL_TEMP_DIR, MACHINE_TYPES
+    RAW_DIR, RAW_CELL_VOLTAGE_DIR, RAW_CELL_TEMP_DIR, MACHINE_TYPES
 )
 
 INCOMING_DIR  = PROJECT_ROOT / "data" / "incoming"
@@ -80,28 +80,6 @@ TELEMETRY_COL_MAP = {
     "Last Trip Hours":              "last_trip_hours_s",
 }
 
-# Required columns for telemetry files (after renaming)
-REQUIRED_TELEMETRY_COLS = {
-    "timestamp", "soc_pct", "stack_voltage_v", "battery_current_a",
-    "output_power_kw", "avg_battery_temp_c", "motor_temperature_c",
-    "total_kwh_consumed",
-}
-
-# All expected raw_parquet columns — extras filled with NaN
-EXPECTED_TELEMETRY_COLS = [
-    "timestamp", "soc_pct", "battery_status", "stack_voltage_v",
-    "battery_current_a", "output_power_kw", "charger_current_demand_a",
-    "charger_voltage_demand_v", "max_cell_voltage_v", "min_cell_voltage_v",
-    "avg_cell_voltage_v", "max_battery_temp_c", "min_battery_temp_c",
-    "avg_battery_temp_c", "motor_torque_limit_nm", "motor_torque_value_nm",
-    "motor_speed_rpm", "motor_rotation_direction", "motor_operation_mode",
-    "mcu_enable_state", "motor_ac_current_a", "motor_ac_voltage_v",
-    "dc_side_voltage_v", "motor_temperature_c", "mcu_temperature_c",
-    "radiator_temperature_c", "dcdc_input_voltage_v", "dcdc_input_current_a",
-    "dcdc_output_voltage_v", "dcdc_output_current_a",
-    "total_kwh_consumed", "last_trip_kwh", "total_running_hours_s",
-    "last_trip_hours_s", "quality_flag",
-]
 
 
 def read_file(path: Path) -> pd.DataFrame:
@@ -150,61 +128,42 @@ def find_new_files() -> list[Path]:
     return sorted(files)
 
 
-def hms_to_seconds(val) -> float | None:
-    """Convert 'HH:MM:SS' or '746:32:02' string to total seconds."""
-    try:
-        parts = str(val).strip().split(":")
-        if len(parts) == 3:
-            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
-    except Exception:
-        pass
-    return None
-
-
 def ingest_telemetry(df: pd.DataFrame, vehicle_id: str, dt: str) -> tuple[bool, str]:
-    """Validate and write telemetry data to raw_parquet."""
+    """
+    Save telemetry as raw CSV for the silver pipeline to process.
+    Keeps original column names — ingest.py handles renaming.
+    Only fixes the tab-prefixed Timestamp column so date filtering works.
+    """
     df = df.copy()
 
-    # Rename human-readable columns to snake_case
-    df = df.rename(columns=TELEMETRY_COL_MAP)
+    # Find timestamp column (may be named Timestamp or timestamp)
+    ts_col = next((c for c in df.columns if c.strip().lower() == "timestamp"), None)
+    if ts_col is None:
+        return False, "no Timestamp column found"
 
-    missing = REQUIRED_TELEMETRY_COLS - set(df.columns)
-    if missing:
-        return False, f"missing columns: {sorted(missing)}"
+    # Strip leading whitespace/tabs from timestamp values
+    df[ts_col] = df[ts_col].astype(str).str.strip()
 
-    df["vehicle_id"] = vehicle_id
-    df["dt"]         = dt
+    # Quick check: does it look like DD-MM-YYYY or YYYY-MM-DD?
+    sample = df[ts_col].dropna().iloc[0] if not df[ts_col].dropna().empty else ""
+    dayfirst = bool(sample and len(sample) > 4 and sample[2] == "-")
 
-    # Convert running hours columns from HH:MM:SS to seconds
-    for col in ("total_running_hours_s", "last_trip_hours_s"):
-        if col in df.columns:
-            df[col] = df[col].apply(hms_to_seconds)
-
-    # Fix timestamp: strip leading whitespace/tabs, parse DD-MM-YYYY format
-    df["timestamp"] = (
-        df["timestamp"]
-        .astype(str)
-        .str.strip()
-    )
-    df["timestamp"] = pd.to_datetime(
-        df["timestamp"], dayfirst=True, utc=True, errors="coerce"
-    )
-    null_ts = df["timestamp"].isna().sum()
+    parsed_ts = pd.to_datetime(df[ts_col], dayfirst=dayfirst, errors="coerce")
+    null_ts = parsed_ts.isna().sum()
     if null_ts > len(df) * 0.5:
         return False, f"timestamp parse failed on {null_ts}/{len(df)} rows"
 
-    for col in EXPECTED_TELEMETRY_COLS:
-        if col not in df.columns:
-            df[col] = None
-
-    df = df[df["timestamp"].dt.date.astype(str) == dt]
+    # Filter to rows matching declared date
+    mask = parsed_ts.dt.date.astype(str) == dt
+    df = df[mask]
     if df.empty:
         return False, f"no rows for date {dt} (timestamps don't match filename)"
 
-    out_dir = RAW_PARQUET_DIR / f"dt={dt}"
+    # Write raw CSV — ingest.py reads from here
+    out_dir = RAW_DIR / f"dt={dt}"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"vehicle_id={vehicle_id}.parquet"
-    df.to_parquet(out_path, index=False)
+    out_path = out_dir / f"vehicle_id={vehicle_id}.csv"
+    df.to_csv(out_path, index=False)
     return True, f"{len(df):,} rows → {out_path}"
 
 
