@@ -46,7 +46,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from configs.settings import (
-    DATA_DIR, SILVER_DIR, GOLD_DIR, RAW_PARQUET_DIR,
+    DATA_DIR, SILVER_DIR, GOLD_DIR, RAW_DIR, RAW_PARQUET_DIR,
     RAW_CELL_VOLTAGE_DIR, STATE_DIR, MACHINE_TYPES,
 )
 
@@ -102,25 +102,40 @@ def silver_dates() -> set[str]:
 
 
 def raw_dates() -> list[str]:
-    """All dates present in raw_parquet."""
-    if not RAW_PARQUET_DIR.exists():
-        return []
-    return sorted(
-        d.name.replace("dt=", "")
-        for d in RAW_PARQUET_DIR.iterdir()
-        if d.is_dir() and d.name.startswith(("dt=", "20"))
-    )
+    """All dates present in raw CSV or raw_parquet."""
+    dates: set[str] = set()
+    for base_dir in (RAW_DIR, RAW_PARQUET_DIR):
+        if base_dir.exists():
+            for d in base_dir.iterdir():
+                if d.is_dir() and d.name.startswith("dt="):
+                    dates.add(d.name.replace("dt=", ""))
+    return sorted(dates)
 
 
 def vehicles_for_date(dt: str) -> list[str]:
-    """Vehicle IDs present in raw_parquet for this date."""
-    base = RAW_PARQUET_DIR / f"dt={dt}"
-    if not base.exists():
-        base = SILVER_DIR / f"dt={dt}"   # fall back to silver if raw cleaned up
-    if not base.exists():
-        return []
-    ids = [p.stem.replace("vehicle_id=", "") for p in base.glob("vehicle_id=*.parquet")]
-    return sorted(ids) if ids else sorted(p.stem for p in base.glob("*.parquet") if not p.stem.startswith("."))
+    """Vehicle IDs available for this date — checks raw CSV, raw_parquet, then silver."""
+    ids: set[str] = set()
+
+    # raw CSV (written by ingest_incoming.py)
+    raw_csv_dir = RAW_DIR / f"dt={dt}"
+    if raw_csv_dir.exists():
+        for p in raw_csv_dir.glob("vehicle_id=*.csv"):
+            ids.add(p.stem.replace("vehicle_id=", ""))
+
+    # raw_parquet (written by run_day.py after silver step)
+    raw_pq_dir = RAW_PARQUET_DIR / f"dt={dt}"
+    if raw_pq_dir.exists():
+        for p in raw_pq_dir.glob("vehicle_id=*.parquet"):
+            ids.add(p.stem.replace("vehicle_id=", ""))
+
+    # silver fallback
+    if not ids:
+        silver_dir = SILVER_DIR / f"dt={dt}"
+        if silver_dir.exists():
+            for p in silver_dir.glob("vehicle_id=*.parquet"):
+                ids.add(p.stem.replace("vehicle_id=", ""))
+
+    return sorted(ids)
 
 
 def new_dates(state: dict) -> list[str]:
