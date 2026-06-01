@@ -130,36 +130,41 @@ def find_new_files() -> list[Path]:
 
 def ingest_telemetry(df: pd.DataFrame, vehicle_id: str, dt: str) -> tuple[bool, str]:
     """
-    Save telemetry as raw CSV for the silver pipeline to process.
-    Keeps original column names — ingest.py handles renaming.
-    Only fixes the tab-prefixed Timestamp column so date filtering works.
+    Save telemetry as raw CSV for the silver pipeline.
+    Keeps original column names (ingest.py renames them).
+    Normalises the Timestamp column to YYYY-MM-DD HH:MM:SS UTC so
+    validators.py can parse it with its strict format string.
     """
     df = df.copy()
 
-    # Find timestamp column (may be named Timestamp or timestamp)
+    # Find timestamp column
     ts_col = next((c for c in df.columns if c.strip().lower() == "timestamp"), None)
     if ts_col is None:
         return False, "no Timestamp column found"
 
-    # Strip leading whitespace/tabs from timestamp values
+    # Strip leading whitespace/tabs
     df[ts_col] = df[ts_col].astype(str).str.strip()
 
-    # Quick check: does it look like DD-MM-YYYY or YYYY-MM-DD?
+    # Detect DD-MM-YYYY vs YYYY-MM-DD
     sample = df[ts_col].dropna().iloc[0] if not df[ts_col].dropna().empty else ""
     dayfirst = bool(sample and len(sample) > 4 and sample[2] == "-")
 
-    parsed_ts = pd.to_datetime(df[ts_col], dayfirst=dayfirst, errors="coerce")
+    parsed_ts = pd.to_datetime(df[ts_col], dayfirst=dayfirst, errors="coerce", utc=True)
     null_ts = parsed_ts.isna().sum()
     if null_ts > len(df) * 0.5:
         return False, f"timestamp parse failed on {null_ts}/{len(df)} rows"
 
-    # Filter to rows matching declared date
+    # Filter to declared date
     mask = parsed_ts.dt.date.astype(str) == dt
     df = df[mask]
+    parsed_ts = parsed_ts[mask]
     if df.empty:
         return False, f"no rows for date {dt} (timestamps don't match filename)"
 
-    # Write raw CSV — ingest.py reads from here
+    # Overwrite Timestamp with normalised YYYY-MM-DD HH:MM:SS (UTC, no tz suffix)
+    # so validators.py strict format="%Y-%m-%d %H:%M:%S" succeeds
+    df[ts_col] = parsed_ts.dt.strftime("%Y-%m-%d %H:%M:%S")
+
     out_dir = RAW_DIR / f"dt={dt}"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"vehicle_id={vehicle_id}.csv"
