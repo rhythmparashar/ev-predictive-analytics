@@ -171,6 +171,14 @@ def step_cells(dt: str, vehicle_id: str) -> tuple[bool, str]:
                  "--start", dt, "--end", dt, "--vehicle-id", vehicle_id])
 
 
+def step_cell_gold(dt: str, vehicle_id: str) -> tuple[bool, str]:
+    from configs.settings import SILVER_CELLS_DIR
+    if not (SILVER_CELLS_DIR / f"dt={dt}").exists():
+        return True, "skipped (no silver cells)"
+    return _run([PYTHON, "run_cells.py", "cell_gold", "--backfill",
+                 "--start", dt, "--end", dt, "--vehicle-id", vehicle_id])
+
+
 def step_gold(dt: str, vehicle_id: str) -> tuple[bool, str]:
     try:
         from features.pipeline import build_gold_for_vehicle_day
@@ -282,12 +290,13 @@ def step_battery(dt: str, vehicle_id: str) -> tuple[bool, str]:
 import json  # noqa: E402 (needed inside step_soc)
 
 STEPS = [
-    ("silver",  step_silver),
-    ("cells",   step_cells),
-    ("gold",    step_gold),
-    ("master",  step_master),
-    ("soc",     step_soc),
-    ("battery", step_battery),
+    ("silver",    step_silver),
+    ("cells",     step_cells),
+    ("cell_gold", step_cell_gold),
+    ("gold",      step_gold),
+    ("master",    step_master),
+    ("soc",       step_soc),
+    ("battery",   step_battery),
 ]
 
 CRITICAL_STEPS = {"silver", "gold"}
