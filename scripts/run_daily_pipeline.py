@@ -57,8 +57,8 @@ MODEL_DIR   = PROJECT_ROOT / "models" / "soc_forecast"
 PYTHON      = sys.executable
 
 SOC_MODELS = {
-    "Loader":    "v3__2026-05-20__7b14ac62",
-    "Excavator": "v3__2026-05-20__7b14ac62",   # replace when EV02 model trained
+    "Loader":    "v4__2026-06-02__fdd89133",
+    "Excavator": "v4__2026-06-02__fdd89133",   # replace when EV02 model trained
 }
 DROP_QUALITY_MASK = 52
 SEP = "─" * 60
@@ -317,7 +317,7 @@ CRITICAL_STEPS = {"silver", "gold"}
 # Per-date run
 # ─────────────────────────────────────────────────────────────────────────────
 
-def process_date(dt: str, state: dict, dry_run: bool = False) -> dict:
+def process_date(dt: str, state: dict, dry_run: bool = False, only_steps: set | None = None) -> dict:
     vehicles = vehicles_for_date(dt)
     if not vehicles:
         print(f"  [{dt}] no vehicles — skip")
@@ -332,6 +332,8 @@ def process_date(dt: str, state: dict, dry_run: bool = False) -> dict:
 
         step_results: dict = {}
         for name, fn in STEPS:
+            if only_steps and name not in only_steps:
+                continue
             if dry_run:
                 print(f"    [{name:<8}]  DRY RUN")
                 step_results[name] = "dry_run"
@@ -436,6 +438,8 @@ def main() -> None:
     ap.add_argument("--dry-run",       action="store_true", dest="dry_run")
     ap.add_argument("--mark-existing", action="store_true", dest="mark_existing",
                     help="Stamp all existing silver dates as done (run once on first setup)")
+    ap.add_argument("--steps", default=None,
+                    help="Comma-separated subset of steps to run, e.g. silver,cells,cell_gold,gold,master")
     args = ap.parse_args()
 
     state = load_state()
@@ -469,8 +473,12 @@ def main() -> None:
     all_results: dict = {}
     t0 = time.time()
 
+    only_steps = set(args.steps.split(",")) if args.steps else None
+    if only_steps:
+        print(f"  Running only steps: {', '.join(sorted(only_steps, key=lambda s: [n for n,_ in STEPS].index(s) if s in [n for n,_ in STEPS] else 99))}")
+
     for dt in dates:
-        r = process_date(dt, state, dry_run=args.dry_run)
+        r = process_date(dt, state, dry_run=args.dry_run, only_steps=only_steps)
         if r:
             all_results[dt] = r
 
