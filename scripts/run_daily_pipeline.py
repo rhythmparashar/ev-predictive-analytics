@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -256,6 +257,15 @@ def step_soc(dt: str, vehicle_id: str) -> tuple[bool, str]:
         return False, f"{type(e).__name__}: {e}"
 
 
+def step_report(dt: str, vehicle_id: str) -> tuple[bool, str]:
+    try:
+        from scripts.generate_daily_report import generate_report
+        out = generate_report(dt, vehicle_id)
+        return (True, str(out)) if out else (False, "no data")
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
+
+
 def step_battery(dt: str, vehicle_id: str) -> tuple[bool, str]:
     try:
         import pandas as pd
@@ -297,6 +307,7 @@ STEPS = [
     ("master",    step_master),
     ("soc",       step_soc),
     ("battery",   step_battery),
+    ("report",    step_report),
 ]
 
 CRITICAL_STEPS = {"silver", "gold"}
@@ -466,6 +477,18 @@ def main() -> None:
     if all_results and not args.dry_run:
         path = write_report(run_label, all_results)
         print(f"\n  Report → {path}")
+
+        # Send email if credentials are configured
+        if os.getenv("EMAIL_SENDER") and os.getenv("EMAIL_PASSWORD"):
+            for dt in dates:
+                print(f"\n  Sending email for {dt}…")
+                import subprocess
+                subprocess.run(
+                    [PYTHON, "scripts/send_report_email.py", "--date", dt],
+                    cwd=str(PROJECT_ROOT),
+                )
+        else:
+            print("\n  (Email not configured — set EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECIPIENTS to enable)")
 
     print(f"\n  Done in {time.time()-t0:.1f}s")
     print(f"{'='*60}\n")
