@@ -159,6 +159,9 @@ def _run(cmd: list[str]) -> tuple[bool, str]:
 
 
 def step_silver(dt: str, vehicle_id: str) -> tuple[bool, str]:
+    silver_file = SILVER_DIR / f"dt={dt}" / f"vehicle_id={vehicle_id}.parquet"
+    if silver_file.exists():
+        return True, "skipped (already exists)"
     ok, msg = _run([PYTHON, "scripts/run_day.py", "--dt", dt, "--vehicle-id", vehicle_id])
     if not ok and "already exists" in msg.lower():
         return True, "skipped (already done)"
