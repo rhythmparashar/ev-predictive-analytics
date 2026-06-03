@@ -187,7 +187,10 @@ def ingest_cell_file(df: pd.DataFrame, vehicle_id: str, dt: str, file_type: str)
     if "Timestamp" not in df.columns:
         return False, "no timestamp column found (expected 'Timestamp')"
 
-    df["Timestamp"] = pd.to_datetime(df["Timestamp"], utc=True, errors="coerce")
+    df["Timestamp"] = df["Timestamp"].astype(str).str.strip()
+    sample = df["Timestamp"].dropna().iloc[0] if not df["Timestamp"].dropna().empty else ""
+    dayfirst = bool(sample and len(sample) > 4 and sample[2] == "-")
+    df["Timestamp"] = pd.to_datetime(df["Timestamp"], dayfirst=dayfirst, utc=True, errors="coerce")
     null_ts = df["Timestamp"].isna().sum()
     if null_ts > len(df) * 0.5:
         return False, f"timestamp parse failed on {null_ts}/{len(df)} rows"
