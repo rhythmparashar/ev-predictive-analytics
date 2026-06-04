@@ -51,11 +51,12 @@ from configs.settings import (
     RAW_CELL_VOLTAGE_DIR, STATE_DIR, MACHINE_TYPES,
 )
 
-REPORTS_DIR  = PROJECT_ROOT / "reports" / "daily"
-STATE_FILE   = STATE_DIR / "pipeline_state.json"
-MODEL_DIR    = PROJECT_ROOT / "models" / "soc_forecast"
-METRICS_FILE = PROJECT_ROOT / "outputs" / "model_metrics" / "soc_daily_metrics.csv"
-PYTHON       = sys.executable
+REPORTS_DIR          = PROJECT_ROOT / "reports" / "daily"
+STATE_FILE           = STATE_DIR / "pipeline_state.json"
+MODEL_DIR            = PROJECT_ROOT / "models" / "soc_forecast"
+MLFLOW_TRACKING_URI  = "http://localhost:5001"
+MLFLOW_EXPERIMENT    = "SOC Forecasting"
+PYTHON               = sys.executable
 
 SOC_MODELS = {
     "Loader":    "v4__2026-06-02__fdd89133",
@@ -72,15 +73,23 @@ SEP = "─" * 60
 
 def log_soc_metrics(dt: str, vehicle_id: str, machine: str, model_run: str,
                     mae: float, n: int) -> None:
-    import csv
-    METRICS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    write_header = not METRICS_FILE.exists()
-    with open(METRICS_FILE, "a", newline="") as f:
-        w = csv.writer(f)
-        if write_header:
-            w.writerow(["dt", "vehicle_id", "machine_type", "model_run", "mae_pct", "n_samples", "ts"])
-        w.writerow([dt, vehicle_id, machine, model_run, round(mae, 4), n,
-                    datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")])
+    try:
+        import mlflow
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_experiment(MLFLOW_EXPERIMENT)
+        with mlflow.start_run(run_name=f"{vehicle_id}_{dt}"):
+            mlflow.set_tags({
+                "vehicle_id":   vehicle_id,
+                "machine_type": machine,
+                "model_run":    model_run,
+                "date":         dt,
+            })
+            mlflow.log_metrics({
+                "mae_pct":   round(mae, 4),
+                "n_samples": float(n),
+            })
+    except Exception as e:
+        print(f"  [mlflow] warning: could not log metrics — {e}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
