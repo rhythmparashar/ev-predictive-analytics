@@ -140,10 +140,10 @@ def vehicles_for_date(dt: str) -> list[str]:
 
 
 def new_dates(state: dict) -> list[str]:
-    """Dates in raw_parquet that are NOT yet in state AND not already in silver."""
-    done  = set(state.get("processed_dates", {}).keys())
-    exist = silver_dates()
-    return [d for d in raw_dates() if d not in done and d not in exist]
+    """Dates with any data (raw or silver) that are NOT yet in state."""
+    done = set(state.get("processed_dates", {}).keys())
+    all_dates = set(raw_dates()) | silver_dates()
+    return sorted(d for d in all_dates if d not in done)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
