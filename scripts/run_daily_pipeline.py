@@ -51,17 +51,36 @@ from configs.settings import (
     RAW_CELL_VOLTAGE_DIR, STATE_DIR, MACHINE_TYPES,
 )
 
-REPORTS_DIR = PROJECT_ROOT / "reports" / "daily"
-STATE_FILE  = STATE_DIR / "pipeline_state.json"
-MODEL_DIR   = PROJECT_ROOT / "models" / "soc_forecast"
-PYTHON      = sys.executable
+REPORTS_DIR  = PROJECT_ROOT / "reports" / "daily"
+STATE_FILE   = STATE_DIR / "pipeline_state.json"
+MODEL_DIR    = PROJECT_ROOT / "models" / "soc_forecast"
+METRICS_FILE = PROJECT_ROOT / "outputs" / "model_metrics" / "soc_daily_metrics.csv"
+PYTHON       = sys.executable
 
 SOC_MODELS = {
     "Loader":    "v4__2026-06-02__fdd89133",
     "Excavator": "v4__2026-06-02__fdd89133",   # replace when EV02 model trained
 }
-DROP_QUALITY_MASK = 52
+DROP_QUALITY_MASK  = 52
+MAE_ALERT_THRESHOLD = 1.5   # % — send drift alert above this
 SEP = "─" * 60
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Metrics logging
+# ─────────────────────────────────────────────────────────────────────────────
+
+def log_soc_metrics(dt: str, vehicle_id: str, machine: str, model_run: str,
+                    mae: float, n: int) -> None:
+    import csv
+    METRICS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    write_header = not METRICS_FILE.exists()
+    with open(METRICS_FILE, "a", newline="") as f:
+        w = csv.writer(f)
+        if write_header:
+            w.writerow(["dt", "vehicle_id", "machine_type", "model_run", "mae_pct", "n_samples", "ts"])
+        w.writerow([dt, vehicle_id, machine, model_run, round(mae, 4), n,
+                    datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -245,6 +264,8 @@ def step_soc(dt: str, vehicle_id: str) -> tuple[bool, str]:
 
         yhat = model.predict(df[features].fillna(0).astype("float32"), validate_features=False)
         mae  = float(np.mean(np.abs(df[target].astype(float).values - yhat)))
+
+        log_soc_metrics(dt, vehicle_id, machine, run_id, mae, len(df))
 
         out = PROJECT_ROOT / "outputs" / "soc_scores" / f"dt={dt}"
         out.mkdir(parents=True, exist_ok=True)
