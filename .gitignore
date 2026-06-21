@@ -47,8 +47,17 @@ Thumbs.db
 ####################################
 
 data/raw/
+data/raw_parquet/
 data/silver/
+data/silver_cells/
 data/gold/
+data/gold_cells/
+data/analysis/
+data/drift_reports/
+data/state/
+data/intermediate/
+data/source_dump/
+data/incoming/processed/
 
 data/tmp/
 data/cache/
@@ -69,8 +78,15 @@ models/
 *.joblib
 
 ####################################
-# Reports & Plots
+# Generated outputs & reports
 ####################################
+
+outputs/
+logs/
+
+reports/daily/
+reports/weekly/
+reports/daily_pdf/
 
 data/reports/
 
@@ -125,3 +141,9 @@ dist/
 
 .env
 .env.*
+
+####################################
+# MLflow
+####################################
+
+mlruns/
