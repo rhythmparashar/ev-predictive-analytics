@@ -12,6 +12,10 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+from configs.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 # ── Regression ─────────────────────────────────────────────────────────────────
 
@@ -27,7 +31,7 @@ def regression_metrics(
 
     if verbose:
         prefix = f"  [{label}] " if label else "  "
-        print(f"{prefix}MAE={mae:.3f}  RMSE={rmse:.3f}  MAPE={mape:.2f}%")
+        logger.info("%sMAE=%.3f  RMSE=%.3f  MAPE=%.2f%%", prefix, mae, rmse, mape)
 
     return dict(mae=mae, rmse=rmse, mape=mape)
 

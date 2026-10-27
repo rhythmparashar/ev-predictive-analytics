@@ -32,6 +32,9 @@ import yaml
 from ingestion.io import write_parquet_atomic, parquet_path
 from features.cell_health import compute_cell_features
 from features.cell_agg import compute_agg_features
+from configs.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 # -------------------------------------------------
@@ -268,10 +271,6 @@ def run_cell_gold_for_day(
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, default=str)
 
-    print(
-        f"[gold_cells] dt={dt} "
-        f"vehicles={len(manifest['vehicles_processed'])} "
-        f"report={report_path}"
-    )
+    logger.info("[gold_cells] dt=%s vehicles=%d report=%s", dt, len(manifest["vehicles_processed"]), report_path)
 
     return manifest

@@ -12,6 +12,10 @@ from pathlib import Path
 
 import pandas as pd
 
+from configs.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 def load_master_dataset(master_dir: Path) -> pd.DataFrame:
     """
@@ -29,7 +33,7 @@ def load_master_dataset(master_dir: Path) -> pd.DataFrame:
         try:
             parts.append(pd.read_parquet(f))
         except Exception as exc:
-            print(f"  [WARN] Skipped {f.name}: {exc}")
+            logger.warning("Skipped %s: %s", f.name, exc)
 
     if not parts:
         raise ValueError(f"All partitions failed to load from {master_dir}")

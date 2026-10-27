@@ -55,7 +55,7 @@ def load_master(
 
     df = duckdb.query(f"""
         SELECT {col_sql}
-        FROM read_parquet('{path}', hive_partitioning=true)
+        FROM read_parquet('{path}', hive_partitioning=true, union_by_name=true)
         {where}
         ORDER BY timestamp
     """).df()
@@ -85,7 +85,7 @@ def load_gold_cells(
 
     df = duckdb.query(f"""
         SELECT {col_sql}
-        FROM read_parquet('{path}', hive_partitioning=true)
+        FROM read_parquet('{path}', hive_partitioning=true, union_by_name=true)
         {where}
         ORDER BY timestamp
     """).df()
@@ -115,7 +115,7 @@ def load_silver_cells(
 
     df = duckdb.query(f"""
         SELECT {col_sql}
-        FROM read_parquet('{path}', hive_partitioning=true)
+        FROM read_parquet('{path}', hive_partitioning=true, union_by_name=true)
         {where}
         ORDER BY timestamp
     """).df()
@@ -155,7 +155,7 @@ def load_raw(
 
     df = duckdb.query(f"""
         SELECT {col_sql}
-        FROM read_parquet('{path}', hive_partitioning=true)
+        FROM read_parquet('{path}', hive_partitioning=true, union_by_name=true)
         {where}
         ORDER BY timestamp
     """).df()

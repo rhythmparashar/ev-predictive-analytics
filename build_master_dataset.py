@@ -32,7 +32,10 @@ OUT_DIR = Path("data/analysis/master")
 
 _parser = argparse.ArgumentParser()
 _parser.add_argument("--vehicle-id", default="EV01", help="Vehicle to build master for (e.g. EV02)")
-VEHICLE_ID = _parser.parse_args().vehicle_id
+_parser.add_argument("--vcu-only", action="store_true", help="Build from VCU silver only (no cell data required)")
+_args = _parser.parse_args()
+VEHICLE_ID = _args.vehicle_id
+VCU_ONLY = _args.vcu_only
 
 # Update if your flag bit definitions differ
 PACK_GAP = 4
@@ -226,14 +229,18 @@ vcu_dates = find_partition_dates(VCU_SILVER, VEHICLE_ID)
 pack_dates = find_partition_dates(CELL_PACK, VEHICLE_ID)
 module_dates = find_partition_dates(CELL_MODULE, VEHICLE_ID)
 
-dates = sorted(vcu_dates & pack_dates & module_dates)
+if VCU_ONLY or (not pack_dates and not module_dates):
+    dates = sorted(vcu_dates)
+    print(f"VCU-only mode: {len(dates)} silver partitions")
+else:
+    dates = sorted(vcu_dates & pack_dates & module_dates)
+    print(f"Shared partitions found: {len(dates)}")
 
-print(f"Shared partitions found: {len(dates)}")
 for d in dates:
     print(f"  {d}")
 
 if not dates:
-    raise SystemExit("No shared partitions found. Nothing to build.")
+    raise SystemExit("No partitions found. Nothing to build.")
 
 
 # ── Build master partitions ─────────────────────────────────────────────
@@ -248,44 +255,57 @@ for partition_dt in dates:
         module_path = CELL_MODULE / f"dt={partition_dt}" / f"vehicle_id={VEHICLE_ID}.parquet"
 
         vcu = load_partition(vcu_path, VCU_COLS, f"VCU silver [{partition_dt}]")
-        pack = load_partition(pack_path, PACK_COLS, f"cell pack_features [{partition_dt}]")
-        module = load_partition(module_path, MODULE_COLS, f"cell module_features [{partition_dt}]")
-
         raw_vcu_rows = len(vcu)
-        raw_pack_rows = len(pack)
-        raw_module_rows = len(module)
-
-        # Deduplicate keys before merge
         vcu, vcu_dupes_removed = deduplicate_on_keys(vcu, f"VCU silver [{partition_dt}]")
-        pack, pack_dupes_removed = deduplicate_on_keys(pack, f"cell pack_features [{partition_dt}]")
-        module, module_dupes_removed = deduplicate_on_keys(module, f"cell module_features [{partition_dt}]")
-
         vcu_rows = len(vcu)
-        pack_rows = len(pack)
-        module_rows = len(module)
 
-        if vcu_rows == 0 or pack_rows == 0 or module_rows == 0:
-            raise ValueError(
-                f"Empty source after dedup "
-                f"(vcu={vcu_rows}, pack={pack_rows}, module={module_rows})"
-            )
+        has_cell_data = (not VCU_ONLY) and pack_path.exists() and module_path.exists()
 
-        # Rename ambiguous quality columns
-        vcu = vcu.rename(columns={"quality_flag": "vcu_quality_flag"})
-        pack = pack.rename(columns={"cell_quality_flag": "cell_quality_flag_pack"})
-        module = module.rename(columns={"cell_quality_flag": "cell_quality_flag_module"})
+        if has_cell_data:
+            pack = load_partition(pack_path, PACK_COLS, f"cell pack_features [{partition_dt}]")
+            module = load_partition(module_path, MODULE_COLS, f"cell module_features [{partition_dt}]")
+            raw_pack_rows = len(pack)
+            raw_module_rows = len(module)
+            pack, pack_dupes_removed = deduplicate_on_keys(pack, f"cell pack_features [{partition_dt}]")
+            module, module_dupes_removed = deduplicate_on_keys(module, f"cell module_features [{partition_dt}]")
+            pack_rows = len(pack)
+            module_rows = len(module)
 
-        # Merge on timestamp + vehicle_id
-        merged = vcu.merge(pack, on=["timestamp", "vehicle_id"], how="inner")
-        merged = merged.merge(module, on=["timestamp", "vehicle_id"], how="inner")
-        merged = merged.sort_values(["timestamp", "vehicle_id"]).reset_index(drop=True)
+            if vcu_rows == 0 or pack_rows == 0 or module_rows == 0:
+                raise ValueError(
+                    f"Empty source after dedup "
+                    f"(vcu={vcu_rows}, pack={pack_rows}, module={module_rows})"
+                )
+
+            vcu = vcu.rename(columns={"quality_flag": "vcu_quality_flag"})
+            pack = pack.rename(columns={"cell_quality_flag": "cell_quality_flag_pack"})
+            module = module.rename(columns={"cell_quality_flag": "cell_quality_flag_module"})
+
+            merged = vcu.merge(pack, on=["timestamp", "vehicle_id"], how="inner")
+            merged = merged.merge(module, on=["timestamp", "vehicle_id"], how="inner")
+            merged = merged.sort_values(["timestamp", "vehicle_id"]).reset_index(drop=True)
+
+            if len(merged) == 0:
+                raise ValueError("Merged result has 0 rows")
+
+            merged["cell_quality_flag"] = merged["cell_quality_flag_pack"]
+            merged = merged.drop(columns=["cell_quality_flag_pack", "cell_quality_flag_module"], errors="ignore")
+        else:
+            # VCU-only: use silver directly, fill cell columns with NaN
+            raw_pack_rows = raw_module_rows = 0
+            pack_dupes_removed = module_dupes_removed = 0
+            pack_rows = module_rows = 0
+            if vcu_rows == 0:
+                raise ValueError("VCU silver is empty after dedup")
+            vcu = vcu.rename(columns={"quality_flag": "vcu_quality_flag"})
+            merged = vcu.copy()
+            for col in ["pack_voltage_range", "pack_voltage_std", "worst_cell_id",
+                        "imbalance_flag", "pack_temp_range", "hottest_module_id",
+                        "cell_quality_flag"]:
+                if col not in merged.columns:
+                    merged[col] = pd.NA
 
         merged_rows = len(merged)
-        if merged_rows == 0:
-            raise ValueError("Merged result has 0 rows")
-
-        # Canonical cell quality flag from pack layer
-        merged["cell_quality_flag"] = merged["cell_quality_flag_pack"]
 
         # Normalize battery_status blanks
         merged["battery_status"] = (

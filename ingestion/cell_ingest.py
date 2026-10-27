@@ -30,6 +30,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from configs.logging_config import get_logger
 from ingestion.io import (
     vehicle_id_from_filename,
     parquet_path,
@@ -275,10 +276,6 @@ def run_cell_ingest_for_day(
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, default=str)
 
-    print(
-        f"[OK] cell_ingest dt={dt} "
-        f"vehicles={len(manifest['vehicles_processed'])} "
-        f"report={report_path}"
-    )
+    logger.info("[cell_ingest] dt=%s vehicles=%d report=%s", dt, len(manifest["vehicles_processed"]), report_path)
 
     return manifest

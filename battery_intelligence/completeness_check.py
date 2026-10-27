@@ -16,6 +16,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from configs.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 MODULES = [1, 2, 3, 4, 5]
 CELLS_PER_MODULE = 36
 SENSORS_PER_MODULE = 18
@@ -200,13 +204,13 @@ def run_cell_completeness(
     cells = expected_cells()
     schema_cells = _schema_cells(cell_voltage_schema)
 
-    print("  Loading silver cell stats (all partitions)...")
+    logger.info("Loading silver cell stats (all partitions)…")
     silver = _silver_stats(silver_dir, cells)
 
-    print("  Loading gold cell_features column presence...")
+    logger.info("Loading gold cell_features column presence…")
     gold = _gold_cell_stats(cell_features_dir, cells)
 
-    print("  Loading Module 2 output sets...")
+    logger.info("Loading Module 2 output sets…")
     weak_ids, delta_ids = _m2_cell_sets(weak_cell_csv, cell_delta_csv)
 
     rows = []
@@ -249,10 +253,10 @@ def run_sensor_completeness(
     sensors = expected_sensors()
     schema_sensors = _schema_sensors(cell_temp_schema)
 
-    print("  Loading silver sensor stats (all partitions)...")
+    logger.info("Loading silver sensor stats (all partitions)…")
     silver = _silver_stats(silver_dir, sensors)
 
-    print("  Loading Module 2 hot sensor output...")
+    logger.info("Loading Module 2 hot sensor output…")
     hot_ids = _m2_sensor_sets(hot_sensor_csv)
 
     rows = []

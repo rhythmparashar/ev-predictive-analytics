@@ -52,8 +52,39 @@ MACHINE_TYPES: dict[str, str] = {
     "EV02": "Excavator",
 }
 
+# Merge in any vehicles added via the dashboard onboarding UI
+_VEHICLE_REGISTRY_PATH = DATA_DIR / "vehicle_registry.json"
+if _VEHICLE_REGISTRY_PATH.exists():
+    try:
+        import json as _json
+        _extra: dict[str, str] = _json.loads(_VEHICLE_REGISTRY_PATH.read_text())
+        MACHINE_TYPES.update(_extra)
+    except Exception:
+        pass
+
 # -------------------------------------------------
 # Environment
 # -------------------------------------------------
 RUN_MODE         = os.getenv("RUN_MODE", "dev")   # dev | prod
 DEFAULT_TIMEZONE = os.getenv("TELEMETRY_TIMEZONE", "UTC")
+
+# -------------------------------------------------
+# Pydantic operational settings
+# Every field is overridable via environment variable.
+# Example: MLFLOW_URI=http://remote:5001 python scripts/train_soc_ev01.py
+# -------------------------------------------------
+from pydantic import Field
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    mlflow_uri: str             = Field("http://localhost:5001", alias="MLFLOW_URI")
+    soc_mae_alert_threshold: float = Field(1.5, alias="SOC_MAE_ALERT_THRESHOLD")
+    soc_mae_retrain_threshold: float = Field(1.0, alias="SOC_MAE_RETRAIN_THRESHOLD")
+    drop_quality_mask: int      = Field(52,  alias="DROP_QUALITY_MASK")
+    log_level: str              = Field("INFO", alias="LOG_LEVEL")
+
+    model_config = {"populate_by_name": True, "env_file": ".env", "extra": "ignore"}
+
+
+settings = Settings()

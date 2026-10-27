@@ -25,6 +25,10 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from configs.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 # ── PSI ────────────────────────────────────────────────────────────────────────
 
@@ -184,17 +188,17 @@ def compute_drift_report(
 
 
 def _print_drift_summary(report: Dict):
-    print(f"\n  Drift report [{report['dt']}] — {report['overall_status']}")
-    print(f"    Stable: {report['n_stable']}  "
-          f"Monitor: {report['n_monitor']}  "
-          f"Drift: {report['n_drift']}")
+    logger.info(
+        "Drift report [%s] — %s  stable=%d monitor=%d drift=%d",
+        report["dt"], report["overall_status"],
+        report["n_stable"], report["n_monitor"], report["n_drift"],
+    )
     drifted = [r for r in report["features"] if r["status"] == "DRIFT"]
-    if drifted:
-        print("    Drifted features:")
-        for r in drifted:
-            print(f"      {r['feature']:45s}  PSI={r['psi']:.3f}  "
-                  f"shift={r['mean_shift_pct']:.1f}%  "
-                  f"ks_p={r['ks_pvalue']:.3f}")
+    for r in drifted:
+        logger.warning(
+            "DRIFT  %-45s  PSI=%.3f  shift=%.1f%%  ks_p=%.3f",
+            r["feature"], r["psi"], r["mean_shift_pct"], r["ks_pvalue"],
+        )
 
 
 def _write_drift_report(dt: str, report: Dict):
@@ -207,4 +211,4 @@ def _write_drift_report(dt: str, report: Dict):
     drift_dir.mkdir(parents=True, exist_ok=True)
     out = drift_dir / f"dt={dt}.json"
     out.write_text(json.dumps(report, indent=2))
-    print(f"  Drift report → {out}")
+    logger.info("Drift report → %s", out)
